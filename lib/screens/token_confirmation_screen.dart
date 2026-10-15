@@ -6,17 +6,24 @@ import 'queue_status_screen.dart';
 class TokenConfirmationScreen extends StatelessWidget {
   final String queueType;
   final String serviceName;
+  final String tokenNumber;
+  final String queueEntryId;
 
   const TokenConfirmationScreen({
     super.key,
     required this.queueType,
     required this.serviceName,
+    required this.tokenNumber,
+    required this.queueEntryId,
   });
 
+  // Open Queue Status with the current queue entry ID.
   void openQueueStatus(BuildContext context) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const QueueStatusScreen()),
+      MaterialPageRoute(
+        builder: (context) => QueueStatusScreen(queueEntryId: queueEntryId),
+      ),
     );
   }
 
@@ -24,12 +31,10 @@ class TokenConfirmationScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: lightPurple,
-
       appBar: AppBar(
         backgroundColor: lightPurple,
         elevation: 0,
         scrolledUnderElevation: 0,
-
         leading: IconButton(
           onPressed: () {
             Navigator.pop(context);
@@ -40,7 +45,6 @@ class TokenConfirmationScreen extends StatelessWidget {
             size: 20,
           ),
         ),
-
         title: const Text(
           'Token Confirmation',
           style: TextStyle(
@@ -49,17 +53,14 @@ class TokenConfirmationScreen extends StatelessWidget {
             fontWeight: FontWeight.bold,
           ),
         ),
-
         centerTitle: true,
       ),
-
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 30),
-
           child: Column(
             children: [
-              // Success icon
+              // SUCCESS ICON
               Container(
                 width: 72,
                 height: 72,
@@ -96,15 +97,13 @@ class TokenConfirmationScreen extends StatelessWidget {
 
               const SizedBox(height: 25),
 
-              // Token card
+              // TOKEN CARD
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
-
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(25),
-
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.05),
@@ -113,7 +112,6 @@ class TokenConfirmationScreen extends StatelessWidget {
                     ),
                   ],
                 ),
-
                 child: Column(
                   children: [
                     const Text(
@@ -128,9 +126,10 @@ class TokenConfirmationScreen extends StatelessWidget {
 
                     const SizedBox(height: 7),
 
-                    const Text(
-                      'A-24',
-                      style: TextStyle(
+                    // Dynamic token number
+                    Text(
+                      tokenNumber,
+                      style: const TextStyle(
                         fontSize: 48,
                         fontWeight: FontWeight.bold,
                         color: primaryPurple,
@@ -150,27 +149,23 @@ class TokenConfirmationScreen extends StatelessWidget {
 
                     const SizedBox(height: 20),
 
-                    // Selected service
+                    // SELECTED SERVICE
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(13),
-
                       decoration: BoxDecoration(
                         color: lightPurple,
                         borderRadius: BorderRadius.circular(15),
                       ),
-
                       child: Row(
                         children: [
                           Container(
                             width: 43,
                             height: 43,
-
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(13),
                             ),
-
                             child: Icon(
                               getServiceIcon(),
                               color: primaryPurple,
@@ -214,13 +209,13 @@ class TokenConfirmationScreen extends StatelessWidget {
 
               const SizedBox(height: 18),
 
-              // Queue information
+              // QUEUE INFORMATION
               Row(
                 children: [
                   Expanded(
                     child: InfoCard(
                       icon: Icons.people_alt_outlined,
-                      title: '12',
+                      title: 'Calculating...',
                       subtitle: 'People Ahead',
                       iconColor: primaryPurple,
                       backgroundColor: lightPurple,
@@ -232,7 +227,7 @@ class TokenConfirmationScreen extends StatelessWidget {
                   Expanded(
                     child: InfoCard(
                       icon: Icons.access_time_rounded,
-                      title: '25 min',
+                      title: 'Calculating...',
                       subtitle: 'Estimated Wait',
                       iconColor: mintGreen,
                       backgroundColor: lightMint,
@@ -243,31 +238,25 @@ class TokenConfirmationScreen extends StatelessWidget {
 
               const SizedBox(height: 18),
 
-              // Notification information
+              // NOTIFICATION INFORMATION
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
-
                 decoration: BoxDecoration(
                   color: lightMint,
                   borderRadius: BorderRadius.circular(18),
-
                   border: Border.all(color: mintGreen.withValues(alpha: 0.15)),
                 ),
-
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
-
                   children: [
                     Container(
                       width: 40,
                       height: 40,
-
                       decoration: const BoxDecoration(
                         color: Colors.white,
                         shape: BoxShape.circle,
                       ),
-
                       child: const Icon(
                         Icons.notifications_none_rounded,
                         color: mintGreen,
@@ -293,7 +282,8 @@ class TokenConfirmationScreen extends StatelessWidget {
                           SizedBox(height: 4),
 
                           Text(
-                            'You will receive a notification when your turn is getting closer.',
+                            'You will receive a notification when '
+                            'your turn is getting closer.',
                             style: TextStyle(
                               fontSize: 11,
                               height: 1.4,
@@ -309,7 +299,7 @@ class TokenConfirmationScreen extends StatelessWidget {
 
               const SizedBox(height: 25),
 
-              // View queue status
+              // VIEW QUEUE STATUS
               AppButton(
                 text: 'View Queue Status',
                 onPressed: () {
@@ -319,7 +309,7 @@ class TokenConfirmationScreen extends StatelessWidget {
 
               const SizedBox(height: 10),
 
-              // Back to home
+              // BACK TO HOME
               TextButton(
                 onPressed: () {
                   Navigator.popUntil(context, (route) => route.isFirst);
@@ -377,11 +367,9 @@ class InfoCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
-
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
@@ -390,18 +378,15 @@ class InfoCard extends StatelessWidget {
           ),
         ],
       ),
-
       child: Column(
         children: [
           Container(
             width: 43,
             height: 43,
-
             decoration: BoxDecoration(
               color: backgroundColor,
               borderRadius: BorderRadius.circular(13),
             ),
-
             child: Icon(icon, color: iconColor, size: 22),
           ),
 
@@ -409,6 +394,7 @@ class InfoCard extends StatelessWidget {
 
           Text(
             title,
+            textAlign: TextAlign.center,
             style: const TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.bold,

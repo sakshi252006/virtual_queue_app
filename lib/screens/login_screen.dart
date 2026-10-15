@@ -1,8 +1,10 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../widgets/common_widgets.dart';
 import 'register_screen.dart';
 import 'home_screen.dart';
+import 'admin_login_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -16,6 +18,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController passwordController = TextEditingController();
 
   bool hidePassword = true;
+  bool isLoading = false;
 
   @override
   void dispose() {
@@ -24,17 +27,82 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void login() {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const HomeScreen()),
-    );
+  Future<void> login() async {
+    final email = emailController.text.trim();
+    final password = passwordController.text;
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter email and password')),
+      );
+      return;
+    }
+
+    if (isLoading) return;
+    setState(() => isLoading = true);
+
+    try {
+      final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      if (credential.user == null) {
+        throw FirebaseAuthException(code: 'login-failed');
+      }
+
+      if (!mounted) return;
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const HomeScreen()),
+      );
+    } on FirebaseAuthException catch (e) {
+      String message = 'Login failed. Please try again.';
+
+      if (e.code == 'user-not-found') {
+        message = 'No account found with this email.';
+      } else if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+        message = 'Incorrect email or password.';
+      } else if (e.code == 'invalid-email') {
+        message = 'Please enter a valid email address.';
+      } else if (e.code == 'user-disabled') {
+        message = 'This account has been disabled.';
+      } else if (e.code == 'too-many-requests') {
+        message = 'Too many attempts. Please try again later.';
+      }
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } catch (_) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Something went wrong. Please try again.'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
+    }
   }
 
   void openRegister() {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const RegisterScreen()),
+    );
+  }
+
+  void openAdminLogin() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const AdminLoginScreen()),
     );
   }
 
@@ -48,11 +116,8 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Back button
               IconButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
+                onPressed: () => Navigator.pop(context),
                 padding: EdgeInsets.zero,
                 icon: const Icon(
                   Icons.arrow_back_ios_new_rounded,
@@ -60,10 +125,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   color: darkText,
                 ),
               ),
-
               const SizedBox(height: 18),
 
-              // Logo
               Center(
                 child: Container(
                   width: 82,
@@ -91,7 +154,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           letterSpacing: -2,
                         ),
                       ),
-
                       Positioned(
                         right: 12,
                         top: 12,
@@ -116,7 +178,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
               const SizedBox(height: 28),
 
-              // Heading
               const Text(
                 'Welcome Back!',
                 style: TextStyle(
@@ -125,22 +186,17 @@ class _LoginScreenState extends State<LoginScreen> {
                   color: darkText,
                 ),
               ),
-
               const SizedBox(height: 7),
-
               const Text(
                 'Login to continue using Virtual Queue',
                 style: TextStyle(fontSize: 14, color: greyText),
               ),
-
               const SizedBox(height: 30),
 
-              // Login Card
               AppCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Email
                     const Text(
                       'Email Address',
                       style: TextStyle(
@@ -149,7 +205,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         color: darkText,
                       ),
                     ),
-
                     const SizedBox(height: 8),
 
                     TextField(
@@ -192,7 +247,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     const SizedBox(height: 20),
 
-                    // Password
                     const Text(
                       'Password',
                       style: TextStyle(
@@ -201,7 +255,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         color: darkText,
                       ),
                     ),
-
                     const SizedBox(height: 8),
 
                     TextField(
@@ -258,18 +311,46 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     const SizedBox(height: 8),
 
-                    // Forgot password
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Forgot password feature will be added later.',
+                        onPressed: () async {
+                          final email = emailController.text.trim();
+
+                          if (email.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Enter your email to reset password.',
+                                ),
                               ),
-                            ),
-                          );
+                            );
+                            return;
+                          }
+
+                          try {
+                            await FirebaseAuth.instance.sendPasswordResetEmail(
+                              email: email,
+                            );
+
+                            if (!mounted) return;
+
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Password reset email sent.'),
+                              ),
+                            );
+                          } on FirebaseAuthException catch (e) {
+                            if (!mounted) return;
+
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  e.message ?? 'Could not send reset email.',
+                                ),
+                              ),
+                            );
+                          }
                         },
                         child: const Text(
                           'Forgot Password?',
@@ -284,15 +365,35 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     const SizedBox(height: 8),
 
-                    // Login button
-                    AppButton(text: 'Login', onPressed: login),
+                    AppButton(
+                      text: isLoading ? 'Please wait...' : 'User Login',
+                      onPressed: isLoading ? () {} : login,
+                    ),
+
+                    const SizedBox(height: 14),
+
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: openAdminLogin,
+                        icon: const Icon(Icons.admin_panel_settings_outlined),
+                        label: const Text('Admin Login'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: primaryPurple,
+                          side: const BorderSide(color: primaryPurple),
+                          padding: const EdgeInsets.symmetric(vertical: 15),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
 
               const SizedBox(height: 24),
 
-              // OR
               Row(
                 children: const [
                   Expanded(child: Divider(color: Color(0xFFD9D4E8))),
@@ -313,7 +414,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
               const SizedBox(height: 22),
 
-              // Register
               Center(
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -339,7 +439,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
               const SizedBox(height: 22),
 
-              // Tagline
               const Center(
                 child: Text(
                   'One App. Every Queue.',

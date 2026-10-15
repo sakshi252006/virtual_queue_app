@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../widgets/common_widgets.dart';
@@ -5,15 +6,45 @@ import 'queue_management_screen.dart';
 import 'service_management_screen.dart';
 import 'admin_profile_screen.dart';
 
-class AdminDashboardScreen extends StatelessWidget {
+class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
+
+  @override
+  State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
+}
+
+class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
+  final CollectionReference<Map<String, dynamic>> _entries = FirebaseFirestore
+      .instance
+      .collection('queue_entries');
+
+  int _refreshKey = 0;
+
+  void _openQueues() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const QueueManagementScreen()),
+    );
+  }
+
+  void _openProfile() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const AdminProfileScreen()),
+    );
+  }
+
+  void _openServices() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const ServiceManagementScreen()),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: lightPurple,
-
-      // ---------------- APP BAR ----------------
       appBar: AppBar(
         backgroundColor: lightPurple,
         elevation: 0,
@@ -27,236 +58,283 @@ class AdminDashboardScreen extends StatelessWidget {
         ),
         actions: [
           IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.notifications_none, color: darkText),
+            onPressed: () => setState(() => _refreshKey++),
+            tooltip: 'Refresh dashboard',
+            icon: const Icon(Icons.refresh, color: darkText),
           ),
-
           IconButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AdminProfileScreen(),
-                ),
-              );
-            },
+            onPressed: _openProfile,
+            tooltip: 'Admin Profile',
             icon: const Icon(Icons.person_outline, color: darkText),
           ),
         ],
       ),
+      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        key: ValueKey(_refreshKey),
+        stream: _entries.snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return const Center(child: Text('Unable to load dashboard data.'));
+          }
 
-      // ---------------- BODY ----------------
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Good Morning, Admin 👋',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: darkText,
-              ),
-            ),
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-            const SizedBox(height: 6),
+          final docs = snapshot.data!.docs;
+          final dataList = docs.map((doc) => doc.data()).toList();
 
-            const Text(
-              'Manage your queues from one place',
-              style: TextStyle(fontSize: 14, color: greyText),
-            ),
+          final waiting = dataList
+              .where((data) => data['status'] == 'waiting')
+              .length;
 
-            const SizedBox(height: 25),
+          final completed = dataList
+              .where((data) => data['status'] == 'completed')
+              .length;
 
-            // ---------------- OVERVIEW ----------------
-            const Text(
-              "Today's Overview",
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: darkText,
-              ),
-            ),
+          final queueGroups = <String, List<Map<String, dynamic>>>{};
 
-            const SizedBox(height: 14),
+          for (final data in dataList) {
+            final type = data['queueType'] as String? ?? '';
+            final service = data['serviceName'] as String? ?? '';
 
-            Row(
+            if (type.isEmpty || service.isEmpty) continue;
+
+            final key = '$type|||$service';
+            queueGroups.putIfAbsent(key, () => []);
+            queueGroups[key]!.add(data);
+          }
+
+          final queueKeys = queueGroups.keys.toList()..sort();
+          final activeKey = queueKeys.isEmpty ? null : queueKeys.first;
+
+          final activeQueue = activeKey == null
+              ? <Map<String, dynamic>>[]
+              : List<Map<String, dynamic>>.from(queueGroups[activeKey]!);
+
+          activeQueue.sort((a, b) {
+            final aValue = (a['tokenValue'] as num?)?.toInt() ?? 0;
+            final bValue = (b['tokenValue'] as num?)?.toInt() ?? 0;
+            return aValue.compareTo(bValue);
+          });
+
+          final currentForQueue = activeQueue.where(
+            (data) => data['status'] == 'serving',
+          );
+
+          final currentToken = currentForQueue.isEmpty
+              ? '—'
+              : currentForQueue.first['tokenNumber']?.toString() ?? '—';
+
+          final queueWaiting = activeQueue
+              .where((data) => data['status'] == 'waiting')
+              .length;
+
+          final queueParts = activeKey?.split('|||') ?? [];
+          final activeType = queueParts.isNotEmpty ? queueParts[0] : '';
+          final activeService = queueParts.length > 1 ? queueParts[1] : '';
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: _statCard(
-                    icon: Icons.people_outline,
-                    title: 'Waiting',
-                    value: '24',
-                    color: primaryPurple,
+                const Text(
+                  'Welcome, Admin 👋',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: darkText,
                   ),
                 ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Manage your queues from one place',
+                  style: TextStyle(fontSize: 14, color: greyText),
+                ),
+                const SizedBox(height: 25),
 
-                const SizedBox(width: 12),
-
-                Expanded(
-                  child: _statCard(
-                    icon: Icons.confirmation_number_outlined,
-                    title: 'Tokens',
-                    value: '58',
-                    color: mintGreen,
+                const Text(
+                  "Today's Overview",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: darkText,
                   ),
                 ),
-              ],
-            ),
+                const SizedBox(height: 14),
 
-            const SizedBox(height: 12),
-
-            Row(
-              children: [
-                Expanded(
-                  child: _statCard(
-                    icon: Icons.access_time,
-                    title: 'Avg. Wait',
-                    value: '18 min',
-                    color: primaryPurple,
-                  ),
-                ),
-
-                const SizedBox(width: 12),
-
-                Expanded(
-                  child: _statCard(
-                    icon: Icons.check_circle_outline,
-                    title: 'Completed',
-                    value: '34',
-                    color: mintGreen,
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 28),
-
-            // ---------------- ACTIVE QUEUE ----------------
-            const Text(
-              'Active Queue',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: darkText,
-              ),
-            ),
-
-            const SizedBox(height: 14),
-
-            AppCard(
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 50,
-                        height: 50,
-                        decoration: BoxDecoration(
-                          color: lightPurple,
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                        child: const Icon(
-                          Icons.local_hospital_outlined,
-                          color: primaryPurple,
-                          size: 27,
-                        ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _statCard(
+                        icon: Icons.people_outline,
+                        title: 'Waiting',
+                        value: '$waiting',
+                        color: primaryPurple,
                       ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _statCard(
+                        icon: Icons.confirmation_number_outlined,
+                        title: 'Tokens',
+                        value: '${docs.length}',
+                        color: mintGreen,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
 
-                      const SizedBox(width: 14),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _statCard(
+                        icon: Icons.access_time,
+                        title: 'Avg. Wait',
+                        value: '${waiting * 5} min',
+                        color: primaryPurple,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _statCard(
+                        icon: Icons.check_circle_outline,
+                        title: 'Completed',
+                        value: '$completed',
+                        color: mintGreen,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 28),
 
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'City Care Hospital',
+                const Text(
+                  'Active Queue',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: darkText,
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                AppCard(
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 50,
+                            height: 50,
+                            decoration: BoxDecoration(
+                              color: lightPurple,
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                            child: const Icon(
+                              Icons.groups_outlined,
+                              color: primaryPurple,
+                              size: 27,
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  activeService.isEmpty
+                                      ? 'No Active Queue'
+                                      : activeService,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: darkText,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  activeType.isEmpty
+                                      ? 'Queue details appear here'
+                                      : activeType,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    color: greyText,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: activeQueue.isEmpty
+                                  ? Colors.grey.shade200
+                                  : lightMint,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              activeQueue.isEmpty ? 'No Queue' : 'Live',
                               style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: darkText,
+                                color: activeQueue.isEmpty
+                                    ? greyText
+                                    : mintGreen,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
-
-                            SizedBox(height: 4),
-
-                            Text(
-                              'Doctor Consultation',
-                              style: TextStyle(fontSize: 13, color: greyText),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: lightMint,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: const Text(
-                          'Active',
-                          style: TextStyle(
-                            color: mintGreen,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
                           ),
-                        ),
+                        ],
                       ),
-                    ],
-                  ),
+                      const SizedBox(height: 18),
+                      const Divider(),
+                      const SizedBox(height: 14),
 
-                  const SizedBox(height: 18),
-
-                  const Divider(),
-
-                  const SizedBox(height: 14),
-
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: const [
-                      Text('Current Token', style: TextStyle(color: greyText)),
-
-                      Text(
-                        'A-23',
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: primaryPurple,
-                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Current Token',
+                            style: TextStyle(color: greyText),
+                          ),
+                          Text(
+                            currentToken,
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: primaryPurple,
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                      const SizedBox(height: 8),
 
-                  const SizedBox(height: 8),
-
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: const [
-                      Text('People Waiting', style: TextStyle(color: greyText)),
-
-                      Text(
-                        '12 people',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: darkText,
-                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'People Waiting',
+                            style: TextStyle(color: greyText),
+                          ),
+                          Text(
+                            '$queueWaiting people',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: darkText,
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                      const SizedBox(height: 18),
 
-                  const SizedBox(height: 18),
-
-                  // Call Next + Skip
-                  Row(
-                    children: [
-                      Expanded(
+                      SizedBox(
+                        width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: () {},
+                          onPressed: _openQueues,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: primaryPurple,
                             foregroundColor: Colors.white,
@@ -266,128 +344,42 @@ class AdminDashboardScreen extends StatelessWidget {
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          child: const Text('Call Next'),
-                        ),
-                      ),
-
-                      const SizedBox(width: 10),
-
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () {},
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: primaryPurple,
-                            side: const BorderSide(color: primaryPurple),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: const Text('Skip'),
+                          child: const Text('Manage Queue'),
                         ),
                       ),
                     ],
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 20),
+              ],
             ),
-
-            const SizedBox(height: 28),
-
-            // ---------------- QUICK ACTIONS ----------------
-            const Text(
-              'Quick Actions',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: darkText,
-              ),
-            ),
-
-            const SizedBox(height: 14),
-
-            AppCard(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _quickAction(context, Icons.queue_outlined, 'Queues', () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const QueueManagementScreen(),
-                      ),
-                    );
-                  }),
-
-                  _quickAction(
-                    context,
-                    Icons.miscellaneous_services_outlined,
-                    'Services',
-                    () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const ServiceManagementScreen(),
-                        ),
-                      );
-                    },
-                  ),
-
-                  _quickAction(context, Icons.person_outline, 'Profile', () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const AdminProfileScreen(),
-                      ),
-                    );
-                  }),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 25),
-          ],
-        ),
+          );
+        },
       ),
-
-      // ---------------- BOTTOM NAVIGATION ----------------
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: 0,
+        type: BottomNavigationBarType.fixed,
         selectedItemColor: primaryPurple,
         unselectedItemColor: greyText,
         backgroundColor: Colors.white,
-
         onTap: (index) {
-          if (index == 1) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const QueueManagementScreen(),
-              ),
-            );
-          }
-
-          if (index == 2) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const AdminProfileScreen(),
-              ),
-            );
-          }
+          if (index == 1) _openQueues();
+          if (index == 2) _openServices();
+          if (index == 3) _openProfile();
         },
-
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.dashboard_outlined),
             label: 'Dashboard',
           ),
-
           BottomNavigationBarItem(
             icon: Icon(Icons.queue_outlined),
             label: 'Queues',
           ),
-
+          BottomNavigationBarItem(
+            icon: Icon(Icons.miscellaneous_services_outlined),
+            label: 'Services',
+          ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person_outline),
             label: 'Profile',
@@ -396,10 +388,6 @@ class AdminDashboardScreen extends StatelessWidget {
       ),
     );
   }
-
-  // =====================================================
-  // STAT CARD
-  // =====================================================
 
   Widget _statCard({
     required IconData icon,
@@ -424,9 +412,7 @@ class AdminDashboardScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(icon, color: color, size: 27),
-
           const SizedBox(height: 12),
-
           Text(
             value,
             style: const TextStyle(
@@ -435,49 +421,8 @@ class AdminDashboardScreen extends StatelessWidget {
               color: darkText,
             ),
           ),
-
           const SizedBox(height: 4),
-
           Text(title, style: const TextStyle(fontSize: 12, color: greyText)),
-        ],
-      ),
-    );
-  }
-
-  // =====================================================
-  // QUICK ACTION
-  // =====================================================
-
-  Widget _quickAction(
-    BuildContext context,
-    IconData icon,
-    String title,
-    VoidCallback onTap,
-  ) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        children: [
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: lightPurple,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(icon, color: primaryPurple, size: 25),
-          ),
-
-          const SizedBox(height: 8),
-
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 12,
-              color: darkText,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
         ],
       ),
     );

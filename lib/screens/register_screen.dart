@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../widgets/common_widgets.dart';
-import 'login_screen.dart';
+import 'home_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -15,67 +17,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final emailController = TextEditingController();
   final phoneController = TextEditingController();
   final passwordController = TextEditingController();
-  final confirmPasswordController = TextEditingController();
 
   bool hidePassword = true;
-  bool hideConfirmPassword = true;
-
-  void register() {
-    String name = nameController.text.trim();
-    String email = emailController.text.trim();
-    String phone = phoneController.text.trim();
-    String password = passwordController.text;
-    String confirmPassword = confirmPasswordController.text;
-
-    if (name.isEmpty ||
-        email.isEmpty ||
-        phone.isEmpty ||
-        password.isEmpty ||
-        confirmPassword.isEmpty) {
-      showMessage('Please fill all fields');
-      return;
-    }
-
-    if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
-      showMessage('Please enter a valid email');
-      return;
-    }
-
-    if (!RegExp(r'^[0-9]{10}$').hasMatch(phone)) {
-      showMessage('Please enter a valid 10-digit mobile number');
-      return;
-    }
-
-    if (password.length < 6) {
-      showMessage('Password must be at least 6 characters');
-      return;
-    }
-
-    if (password != confirmPassword) {
-      showMessage('Passwords do not match');
-      return;
-    }
-
-    // Frontend demo registration.
-    // Backend authentication will be added later.
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const LoginScreen()),
-    );
-  }
-
-  void showMessage(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  void goToLogin() {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const LoginScreen()),
-    );
-  }
 
   @override
   void dispose() {
@@ -83,246 +26,346 @@ class _RegisterScreenState extends State<RegisterScreen> {
     emailController.dispose();
     phoneController.dispose();
     passwordController.dispose();
-    confirmPasswordController.dispose();
     super.dispose();
   }
 
-  Widget label(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 7),
-      child: Text(
-        text,
-        style: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-          color: darkText,
-        ),
-      ),
-    );
-  }
+  Future<void> register() async {
+    final name = nameController.text.trim();
+    final email = emailController.text.trim();
+    final phone = phoneController.text.trim();
+    final password = passwordController.text;
 
-  Widget textField({
-    required String labelText,
-    required String hintText,
-    required TextEditingController controller,
-    TextInputType keyboardType = TextInputType.text,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        label(labelText),
-        TextField(
-          controller: controller,
-          keyboardType: keyboardType,
-          decoration: InputDecoration(
-            hintText: hintText,
-            filled: true,
-            fillColor: Colors.white,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide.none,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(
-                color: Colors.black.withValues(alpha: 0.05),
-              ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: primaryPurple, width: 1.2),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+    // 1. Check empty fields
+    if (name.isEmpty || email.isEmpty || phone.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please fill all fields.')));
+      return;
+    }
 
-  Widget passwordField({
-    required String labelText,
-    required String hintText,
-    required TextEditingController controller,
-    required bool obscureText,
-    required VoidCallback onToggle,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        label(labelText),
-        TextField(
-          controller: controller,
-          obscureText: obscureText,
-          decoration: InputDecoration(
-            hintText: hintText,
-            filled: true,
-            fillColor: Colors.white,
-            suffixIcon: IconButton(
-              onPressed: onToggle,
-              icon: Icon(
-                obscureText
-                    ? Icons.visibility_off_outlined
-                    : Icons.visibility_outlined,
-                color: greyText,
-              ),
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide.none,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(
-                color: Colors.black.withValues(alpha: 0.05),
-              ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: primaryPurple, width: 1.2),
-            ),
-          ),
-        ),
-      ],
+    // 2. Validate email format
+    final emailRegex = RegExp(
+      r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$',
     );
+
+    if (!emailRegex.hasMatch(email)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid email address.')),
+      );
+      return;
+    }
+
+    // 3. Validate phone number format (10 digits)
+    if (!RegExp(r'^[0-9]{10}$').hasMatch(phone)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a valid 10-digit mobile number.'),
+        ),
+      );
+      return;
+    }
+
+    // 4. Validate password
+    if (password.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Password must be at least 6 characters.'),
+        ),
+      );
+      return;
+    }
+
+    try {
+      // 5. Create Firebase Authentication account
+      final credential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(email: email, password: password);
+
+      final user = credential.user;
+
+      if (user == null) {
+        throw Exception('Firebase user account was not created.');
+      }
+
+      // 6. Save user profile in Firestore
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'name': name,
+        'email': email,
+        'phone': phone,
+        'role': 'user',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Account created successfully!')),
+      );
+
+      // 7 . Navigate to Home
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const HomeScreen()),
+      );
+    } on FirebaseAuthException catch (e) {
+      debugPrint('FIREBASE AUTH ERROR: ${e.code} - ${e.message}');
+
+      String message;
+
+      switch (e.code) {
+        case 'email-already-in-use':
+          message = 'This email is already registered. Please log in.';
+          break;
+        case 'invalid-email':
+          message = 'Please enter a valid email address.';
+          break;
+        case 'weak-password':
+          message = 'Password is too weak. Use at least 6 characters.';
+          break;
+        case 'network-request-failed':
+          message = 'Network error. Please check your internet.';
+          break;
+        case 'operation-not-allowed':
+          message = 'Email/Password sign-in is not enabled in Firebase.';
+          break;
+        default:
+          message = 'Registration failed: ${e.message ?? e.code}';
+      }
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), duration: const Duration(seconds: 5)),
+      );
+    } on FirebaseException catch (e) {
+      debugPrint('FIRESTORE ERROR: ${e.code} - ${e.message}');
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Database error: ${e.message ?? e.code}'),
+          duration: const Duration(seconds: 8),
+        ),
+      );
+    } catch (e) {
+      debugPrint('REGISTRATION ERROR: $e');
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Something went wrong: $e'),
+          duration: const Duration(seconds: 8),
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: lightPurple,
+      appBar: AppBar(
+        backgroundColor: lightPurple,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: darkText),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+          padding: const EdgeInsets.all(24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 15),
+              const SizedBox(height: 20),
 
-              // Logo
-              Center(
-                child: Container(
-                  width: 68,
-                  height: 68,
-                  decoration: BoxDecoration(
-                    color: primaryPurple,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Icon(Icons.queue, color: Colors.white, size: 36),
+              const Text(
+                'Create Account',
+                style: TextStyle(
+                  fontSize: 30,
+                  fontWeight: FontWeight.bold,
+                  color: darkText,
                 ),
               ),
 
-              const SizedBox(height: 22),
+              const SizedBox(height: 8),
 
-              const Center(
-                child: Text(
-                  'Create Account',
-                  style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                    color: darkText,
-                  ),
-                ),
+              const Text(
+                'Create your account to join queues easily.',
+                style: TextStyle(fontSize: 14, color: greyText),
               ),
 
-              const SizedBox(height: 7),
-
-              const Center(
-                child: Text(
-                  'Create your Virtual Queue account',
-                  style: TextStyle(fontSize: 13, color: greyText),
-                ),
-              ),
-
-              const SizedBox(height: 25),
+              const SizedBox(height: 35),
 
               AppCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    textField(
-                      labelText: 'Full Name',
-                      hintText: 'Enter your full name',
-                      controller: nameController,
+                    const Text(
+                      'Full Name',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: darkText,
+                      ),
                     ),
 
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 8),
 
-                    textField(
-                      labelText: 'Email',
-                      hintText: 'Enter your email',
+                    TextField(
+                      controller: nameController,
+                      textCapitalization: TextCapitalization.words,
+                      decoration: InputDecoration(
+                        hintText: 'Enter your name',
+                        prefixIcon: const Icon(
+                          Icons.person_outline,
+                          color: primaryPurple,
+                        ),
+                        filled: true,
+                        fillColor: lightPurple,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    const Text(
+                      'Email Address',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: darkText,
+                      ),
+                    ),
+
+                    const SizedBox(height: 8),
+
+                    TextField(
                       controller: emailController,
                       keyboardType: TextInputType.emailAddress,
+                      autocorrect: false,
+                      decoration: InputDecoration(
+                        hintText: 'Enter your email',
+                        prefixIcon: const Icon(
+                          Icons.email_outlined,
+                          color: primaryPurple,
+                        ),
+                        filled: true,
+                        fillColor: lightPurple,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
                     ),
 
-                    const SizedBox(height: 16),
+                    const Text(
+                      'Mobile Number',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: darkText,
+                      ),
+                    ),
 
-                    textField(
-                      labelText: 'Mobile Number',
-                      hintText: 'Enter 10-digit mobile number',
+                    const SizedBox(height: 8),
+
+                    TextField(
                       controller: phoneController,
                       keyboardType: TextInputType.phone,
+                      maxLength: 10,
+                      decoration: InputDecoration(
+                        hintText: 'Enter 10-digit mobile number',
+                        prefixIcon: const Icon(
+                          Icons.phone_outlined,
+                          color: primaryPurple,
+                        ),
+                        counterText: '',
+                        filled: true,
+                        fillColor: lightPurple,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
                     ),
 
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
 
-                    passwordField(
-                      labelText: 'Password',
-                      hintText: 'Enter password',
+                    const Text(
+                      'Password',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: darkText,
+                      ),
+                    ),
+
+                    const SizedBox(height: 8),
+
+                    TextField(
                       controller: passwordController,
                       obscureText: hidePassword,
-                      onToggle: () {
-                        setState(() {
-                          hidePassword = !hidePassword;
-                        });
-                      },
+                      decoration: InputDecoration(
+                        hintText: 'Enter password',
+                        prefixIcon: const Icon(
+                          Icons.lock_outline,
+                          color: primaryPurple,
+                        ),
+                        suffixIcon: IconButton(
+                          onPressed: () {
+                            setState(() {
+                              hidePassword = !hidePassword;
+                            });
+                          },
+                          icon: Icon(
+                            hidePassword
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                          ),
+                        ),
+                        filled: true,
+                        fillColor: lightPurple,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
                     ),
 
-                    const SizedBox(height: 16),
-
-                    passwordField(
-                      labelText: 'Confirm Password',
-                      hintText: 'Re-enter password',
-                      controller: confirmPasswordController,
-                      obscureText: hideConfirmPassword,
-                      onToggle: () {
-                        setState(() {
-                          hideConfirmPassword = !hideConfirmPassword;
-                        });
-                      },
-                    ),
-
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 30),
 
                     AppButton(text: 'Create Account', onPressed: register),
                   ],
                 ),
               ),
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 25),
 
-              Center(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text(
-                      'Already have an account? ',
-                      style: TextStyle(color: greyText, fontSize: 13),
-                    ),
-                    GestureDetector(
-                      onTap: goToLogin,
-                      child: const Text(
-                        'Login',
-                        style: TextStyle(
-                          color: primaryPurple,
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                        ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text(
+                    'Already have an account?',
+                    style: TextStyle(color: greyText),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                    child: const Text(
+                      'Login',
+                      style: TextStyle(
+                        color: primaryPurple,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-
-              const SizedBox(height: 20),
             ],
           ),
         ),

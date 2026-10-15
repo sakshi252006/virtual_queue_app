@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../widgets/common_widgets.dart';
-import 'admin_login_screen.dart';
 import 'join_queue_screen.dart';
 import 'my_queue_screen.dart';
 import 'notifications_screen.dart';
@@ -51,26 +50,17 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void openAdminLogin() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const AdminLoginScreen()),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: lightPurple,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 100),
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ------------------------------------------------
               // HEADER
-              // ------------------------------------------------
               Row(
                 children: [
                   Container(
@@ -91,9 +81,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   ),
-
                   const SizedBox(width: 12),
-
                   const Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -114,7 +102,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       ],
                     ),
                   ),
-
                   InkWell(
                     onTap: () {
                       Navigator.push(
@@ -151,9 +138,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
               const SizedBox(height: 25),
 
-              // ------------------------------------------------
               // JOIN QUEUE MAIN CARD
-              // ------------------------------------------------
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
@@ -190,9 +175,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             size: 28,
                           ),
                         ),
-
                         const SizedBox(width: 14),
-
                         const Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -218,9 +201,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ],
                     ),
-
                     const SizedBox(height: 20),
-
                     SizedBox(
                       width: double.infinity,
                       height: 48,
@@ -249,9 +230,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
               const SizedBox(height: 25),
 
-              // ------------------------------------------------
               // QUICK ACTIONS
-              // ------------------------------------------------
               const Text(
                 'Quick Actions',
                 style: TextStyle(
@@ -260,7 +239,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: darkText,
                 ),
               ),
-
               const SizedBox(height: 14),
 
               Row(
@@ -280,9 +258,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       },
                     ),
                   ),
-
                   const SizedBox(width: 12),
-
                   Expanded(
                     child: _QuickCard(
                       icon: Icons.qr_code_scanner_rounded,
@@ -294,7 +270,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ],
               ),
-
               const SizedBox(height: 12),
 
               Row(
@@ -307,9 +282,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       onTap: () {},
                     ),
                   ),
-
                   const SizedBox(width: 12),
-
                   Expanded(
                     child: _QuickCard(
                       icon: Icons.location_on_outlined,
@@ -324,9 +297,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
               const SizedBox(height: 25),
 
-              // ------------------------------------------------
               // CURRENT QUEUE
-              // ------------------------------------------------
               const Text(
                 'My Current Queue',
                 style: TextStyle(
@@ -335,7 +306,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: darkText,
                 ),
               ),
-
               const SizedBox(height: 14),
 
               AppCard(
@@ -356,9 +326,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             size: 26,
                           ),
                         ),
-
                         const SizedBox(width: 13),
-
                         const Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -381,9 +349,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ],
                     ),
-
                     const SizedBox(height: 16),
-
                     SizedBox(
                       width: double.infinity,
                       height: 43,
@@ -411,9 +377,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
               const SizedBox(height: 25),
 
-              // ------------------------------------------------
               // SAVE TIME CARD
-              // ------------------------------------------------
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(17),
@@ -437,9 +401,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         size: 23,
                       ),
                     ),
-
                     const SizedBox(width: 13),
-
                     const Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -468,37 +430,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
 
-              const SizedBox(height: 22),
-
-              // ------------------------------------------------
-              // ADMIN LOGIN
-              // ------------------------------------------------
-              Center(
-                child: TextButton.icon(
-                  onPressed: openAdminLogin,
-                  icon: const Icon(
-                    Icons.admin_panel_settings_outlined,
-                    size: 18,
-                    color: primaryPurple,
-                  ),
-                  label: const Text(
-                    'Admin Login',
-                    style: TextStyle(
-                      color: primaryPurple,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
+              // Admin Login section removed
             ],
           ),
         ),
       ),
 
-      // ------------------------------------------------
-      // BOTTOM NAVIGATION
-      // ------------------------------------------------
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: Colors.white,
@@ -548,9 +485,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-// ============================================================
 // QUICK ACTION CARD
-// ============================================================
 
 class _QuickCard extends StatelessWidget {
   final IconData icon;
@@ -596,9 +531,7 @@ class _QuickCard extends StatelessWidget {
               ),
               child: Icon(icon, size: 25, color: iconColor),
             ),
-
             const SizedBox(height: 9),
-
             Text(
               title,
               textAlign: TextAlign.center,
