@@ -1,0 +1,5 @@
+Approach,MAE,RMSE,R2
+Average Baseline,355.83,611.34,-0.0
+Linear Regression,271.72,431.47,0.502
+Random Forest,24.45,51.51,0.993
+Simple Queue Formula,15.28,17.1,0.999

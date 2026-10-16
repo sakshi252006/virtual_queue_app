@@ -1,0 +1,24 @@
+QUEULESS - INITIAL DATA ANALYSIS
+
+Dataset size: 560 records
+Unique queue lengths: 18
+
+Target:
+Actual waiting time = start_time - arrival_time
+
+Overall waiting-time standard deviation: 3.31 minutes
+
+Average waiting time by queue group:
+Small queues (<=20): 4.27 minutes
+Medium queues (21-35): 4.63 minutes
+Large queues (>35): 4.56 minutes
+
+Model evaluation:
+Average baseline MAE: 3.11 minutes
+Linear Regression MAE: 3.13 minutes
+Random Forest MAE: 3.21 minutes
+
+Conclusion:
+The tested features do not provide enough predictive
+information for these models to outperform the baseline.
+Further data investigation and additional features are needed.
