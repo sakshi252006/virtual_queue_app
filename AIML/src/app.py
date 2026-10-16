@@ -9,7 +9,7 @@ app = Flask(__name__)
 @app.route("/", methods=["GET"])
 def home():
     return jsonify({
-        "message": "Queueless Waiting Time Prediction API is running"
+        "message": "Queueless Random Forest Waiting Time Prediction API is running"
     })
 
 
@@ -18,12 +18,16 @@ def predict():
     data = request.get_json(silent=True)
 
     if not isinstance(data, dict):
-        return jsonify({"error": "Request body must be a JSON object."}), 400
+        return jsonify({
+            "error": "Request body must be a JSON object."
+        }), 400
 
     required_fields = [
         "number_of_people",
         "counters_open",
         "avg_service_time",
+        "time_of_day",
+        "queue_type",
     ]
 
     missing_fields = [
@@ -37,24 +41,37 @@ def predict():
         }), 400
 
     try:
-        values = [
-            data["number_of_people"],
-            data["counters_open"],
-            data["avg_service_time"],
+        numeric_fields = [
+            "number_of_people",
+            "counters_open",
+            "avg_service_time",
+            "time_of_day",
         ]
 
-        if any(
-            isinstance(value, bool)
-            or not isinstance(value, (int, float))
-            for value in values
-        ):
-            raise ValueError("All input values must be numbers.")
+        for field in numeric_fields:
+            value = data[field]
 
-        result = predict_wait(*values)
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                raise ValueError(f"{field} must be a number.")
 
-        return jsonify({"estimated_wait": result})
+        if not isinstance(data["queue_type"], str):
+            raise ValueError("queue_type must be text.")
 
-    except (ValueError, TypeError) as error:
+        result = predict_wait(
+            number_of_people=data["number_of_people"],
+            counters_open=data["counters_open"],
+            avg_service_time=data["avg_service_time"],
+            time_of_day=data["time_of_day"],
+            queue_type=data["queue_type"],
+        )
+
+        return jsonify({
+            "estimated_wait": result,
+            "model": "Random Forest Regressor",
+            "unit": "minutes"
+        })
+
+    except (ValueError, TypeError, FileNotFoundError) as error:
         return jsonify({"error": str(error)}), 400
 
 
